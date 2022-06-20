@@ -1,3 +1,8 @@
+// Brian Chrzanowski
+// 2022-06-20 04:01:24
+//
+// WORK IN PROGRESS - DOESN'T DO ANYTHING USEFUL (yet?)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
