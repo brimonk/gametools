@@ -62,7 +62,14 @@ int xmatch(char *candidate, char *word, char *result)
 
 int gmatch(char *candidate, char *word, char *result)
 {
-	int i;
+	int i, greens;
+
+	for (i = 0, greens = 0; i < 5; i++)
+		if (result[i] == 'g')
+			greens++;
+
+	if (greens == 0)
+		return 0;
 
 	for (i = 0; i < 5; i++)
 		if (result[i] == 'g' && candidate[i] != word[i])
@@ -79,22 +86,38 @@ int ymatch(char *candidate, char *word, char *result)
 	// - word         the word the user input
 	// - result (the result from the wordle game)
 
-	int i, j;
+	int i, j, t;
 	int rc;
+	int yellows;
 
 	rc = 0;
+
+	for (i = 0, yellows = 0; i < WORDLELEN; i++)
+		if (result[i] == 'y')
+			yellows++;
+
+	if (yellows == 0)
+		return 0;
 
 	for (i = 0; i < WORDLELEN; i++) {
 		if (result[i] != 'y')
 			continue;
 
 		if (word[i] == candidate[i]) // yellow letter in same spot on candidate
-			return false;
+			return 0;
+
+		// Here, we use 't' to ensure that we find a match for EACH yellow letter.
+		t = 0;
 
 		for (j = 0; j < WORDLELEN; j++) {
 			if (i != j && candidate[j] == word[i]) {
-				rc = true;
+				rc = 1;
+				t = 1;
 			}
+		}
+
+		if (!t) {
+			return 0;
 		}
 	}
 
@@ -107,7 +130,7 @@ void crunchlist(char *word, char *result)
 		if (WORDLIST[i] == NULL)
 			continue;
 
-		if (xmatch(WORDLIST[i], word, result) || !(gmatch(WORDLIST[i], word, result) && ymatch(WORDLIST[i], word, result))) {
+		if (xmatch(WORDLIST[i], word, result) || !(gmatch(WORDLIST[i], word, result) || ymatch(WORDLIST[i], word, result))) {
 			free(WORDLIST[i]);
 			WORDLIST[i] = NULL;
 		}
@@ -211,12 +234,6 @@ int main(int argc, char **argv)
 		printentries(&printidx, printamt); // we literally don't do anything special to print a diverse set of guesses
 
 		guess++;
-	}
-
-	if (win_state) {
-		printf("CONGRATS, YOU CHEATED!\n");
-	} else {
-		printf("You couldn't even win without cheating? Pathetic.\n");
 	}
 
 	return 0;
