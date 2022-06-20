@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <ctype.h>
 #include <limits.h>
@@ -72,21 +73,32 @@ int gmatch(char *candidate, char *word, char *result)
 
 int ymatch(char *candidate, char *word, char *result)
 {
-	int yellows[LETTERS];
-	int clettrs[LETTERS];
+	// NOTE (Brian) check if the candidate word has ALL yellow letters in a DIFFERENT spot
+	//
+	// - candidate    the word we're attempting to filter in / out
+	// - word         the word the user input
+	// - result (the result from the wordle game)
 
-	memset(&yellows, 0, sizeof yellows);
-	memset(&clettrs, 0, sizeof clettrs);
+	int i, j;
+	int rc;
 
-	mktab(yellows, 'y', word, result);
-	mktab(clettrs, 'y', candidate, NULL);
+	rc = 0;
 
-	for (int i = 0; i < LETTERS; i++) {
-		if (0 < yellows[i] && !(clettrs[i] <= yellows[i]))
-			return 0;
+	for (i = 0; i < WORDLELEN; i++) {
+		if (result[i] != 'y')
+			continue;
+
+		if (word[i] == candidate[i]) // yellow letter in same spot on candidate
+			return false;
+
+		for (j = 0; j < WORDLELEN; j++) {
+			if (i != j && candidate[j] == word[i]) {
+				rc = true;
+			}
+		}
 	}
 
-	return 1;
+	return rc;
 }
 
 void crunchlist(char *word, char *result)
