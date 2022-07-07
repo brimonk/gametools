@@ -1,4 +1,4 @@
-CFLAGS=-Wall -g3
+CFLAGS += -Wall -g3
 
 all: rcubestool wordle
 

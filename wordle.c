@@ -19,6 +19,18 @@
 #define WORDLELEN (5)
 #define LETTERS 26
 
+#if VERBOSE_LOG
+#define ERR(FMT,...)     printf("ERR: "FMT, ##__VA_ARGS__)
+#define WRN(FMT,...)     printf("WRN: "FMT, ##__VA_ARGS__)
+#define LOG(FMT,...)     printf("LOG: "FMT, ##__VA_ARGS__)
+#define DBG(FMT,...)     printf("DBG: "FMT, ##__VA_ARGS__)
+#else
+#define ERR(FMT,...)
+#define WRN(FMT,...)
+#define LOG(FMT,...)
+#define DBG(FMT,...)
+#endif
+
 char *WORDLIST[LISTLIM];
 int TOTALWORDS = 0;
 
@@ -35,6 +47,7 @@ void mktab(int *tab, char c, char *w, char *r)
 	}
 }
 
+// chkwon: returns true if every character in the string is 'g'
 int chkwon(char *s)
 {
 	while (*s) {
@@ -45,39 +58,51 @@ int chkwon(char *s)
 	return 1;
 }
 
+// xmatch: returns -1 if there aren't any 'x's, 0 if the word isn't a match, and 1 if it is
 int xmatch(char *candidate, char *word, char *result)
 {
 	int tab[26];
+	int grays;
+
+	for (int i = 0; i < WORDLELEN; i++)
+		if (result[i] == 'x')
+			grays++;
+
+	if (grays == 0)
+		return -1;
 
 	memset(&tab, 0, sizeof tab);
+
 	mktab(tab, 'x', word, result);
 
-	for (int i = 0; i < WORDLELEN; i++) {
+	for (int i = 0; i < WORDLELEN; i++)
 		if (tab[candidate[i] - 'a'] > 0)
 			return 1;
-	}
 
 	return 0;
 }
 
+// gmatch: returns -1 if there aren't any 'g's, 0 if there is a 'g', but it doesn't match thecandidate, and 1 if all of the 'g's match
 int gmatch(char *candidate, char *word, char *result)
 {
 	int i, greens;
 
-	for (i = 0, greens = 0; i < 5; i++)
+	for (i = 0, greens = 0; i < WORDLELEN; i++)
 		if (result[i] == 'g')
 			greens++;
 
 	if (greens == 0)
-		return 0;
+		return -1;
 
-	for (i = 0; i < 5; i++)
-		if (result[i] == 'g' && candidate[i] != word[i])
-			return 0;
+	for (i = 0; i < WORDLELEN; i++)
+		if (result[i] == 'g')
+			if (candidate[i] != word[i])
+				return 0;
 
 	return 1;
 }
 
+// ymatch:
 int ymatch(char *candidate, char *word, char *result)
 {
 	// NOTE (Brian) check if the candidate word has ALL yellow letters in a DIFFERENT spot
@@ -97,7 +122,10 @@ int ymatch(char *candidate, char *word, char *result)
 			yellows++;
 
 	if (yellows == 0)
-		return 0;
+		return -1;
+
+	// NOTE (Brian) this is in a nutty n^2 loop because we need to ensure that we account for
+	// multiple yellow letters.
 
 	for (i = 0; i < WORDLELEN; i++) {
 		if (result[i] != 'y')
@@ -109,6 +137,7 @@ int ymatch(char *candidate, char *word, char *result)
 		// Here, we use 't' to ensure that we find a match for EACH yellow letter.
 		t = 0;
 
+		// check if our yellow letter in the candidate matches a different spot
 		for (j = 0; j < WORDLELEN; j++) {
 			if (i != j && candidate[j] == word[i]) {
 				rc = 1;
@@ -116,6 +145,7 @@ int ymatch(char *candidate, char *word, char *result)
 			}
 		}
 
+		// if we didn't find a yellow letter
 		if (!t) {
 			return 0;
 		}
@@ -124,16 +154,42 @@ int ymatch(char *candidate, char *word, char *result)
 	return rc;
 }
 
+// crunchlist: takes the word and the result and removes words that don't match
 void crunchlist(char *word, char *result)
 {
+	int rc;
+
 	for (int i = 0; i < TOTALWORDS; i++) {
 		if (WORDLIST[i] == NULL)
 			continue;
 
-		if (xmatch(WORDLIST[i], word, result) || !(gmatch(WORDLIST[i], word, result) || ymatch(WORDLIST[i], word, result))) {
-			free(WORDLIST[i]);
-			WORDLIST[i] = NULL;
+		rc = xmatch(WORDLIST[i], word, result);
+		if (rc == 1) {
+			DBG("XMATCH\n");
+			goto CRUNCHLIST_RELEASE;
 		}
+
+		rc = gmatch(WORDLIST[i], word, result);
+		if (rc == 0) {
+			DBG("GMATCH\n");
+			goto CRUNCHLIST_RELEASE;
+		}
+
+		rc = ymatch(WORDLIST[i], word, result);
+		if (rc == 0) {
+			DBG("YMATCH\n");
+			goto CRUNCHLIST_RELEASE;
+		}
+
+		continue;
+
+CRUNCHLIST_RELEASE:
+
+		DBG("RELEASE [%s], [%s] - [%s]\n", WORDLIST[i], word, result);
+		
+		free(WORDLIST[i]);
+
+		WORDLIST[i] = NULL;
 	}
 }
 
@@ -208,20 +264,30 @@ int main(int argc, char **argv)
 	win_state = guess = 0;
 
 	while (!win_state) {
-		printf("G > ");
-		fgets(word, sizeof word, stdin);
-		word[strlen(word) - 1] = 0;
-		strtolower(word);
+		memset(word, 0, sizeof word);
 
-		if (strlen(word) == 0) {
+		do {
+			printf("G > ");
+			fgets(word, sizeof word, stdin);
+			if (word[strlen(word) - 1] == '\n')
+				word[strlen(word) - 1] = 0;
+			strtolower(word);
+		} while (strlen(word) == 0);
+
+		if (strcmp(word, "LIST") == 0) {
 			printentries(&printidx, printamt);
 			continue;
 		}
 
-		printf("S > ");
-		fgets(result, sizeof result, stdin);
-		result[strlen(result) - 1] = 0;
-		strtolower(result);
+		memset(result, 0, sizeof result);
+
+		do {
+			printf("S > ");
+			fgets(result, sizeof result, stdin);
+			if (result[strlen(result) - 1])
+				result[strlen(result) - 1] = 0;
+			strtolower(result);
+		} while (strlen(result) == 0);
 
 		win_state = chkwon(result);
 		if (win_state)
