@@ -271,13 +271,10 @@ int main(int argc, char **argv)
 			fgets(word, sizeof word, stdin);
 			if (word[strlen(word) - 1] == '\n')
 				word[strlen(word) - 1] = 0;
+			if (strlen(word) == 0)
+				printentries(&printidx, printamt);
 			strtolower(word);
 		} while (strlen(word) == 0);
-
-		if (strcmp(word, "LIST") == 0) {
-			printentries(&printidx, printamt);
-			continue;
-		}
 
 		memset(result, 0, sizeof result);
 
