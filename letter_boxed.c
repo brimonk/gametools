@@ -29,6 +29,7 @@ typedef struct PuzzleState {
     Grid *grid;
     i32 words[MAX_SOLVE_WORDS];
     i32 is_invalid;
+    i32 curr;
 } PuzzleState;
 
 void init_puzzle_state(PuzzleState *puzzle_state, Grid *grid)
@@ -128,6 +129,57 @@ int is_puzzle_solved(PuzzleState *state)
     }
 
     return true;
+}
+
+i64 how_many_more_letters(PuzzleState *state, i32 slots[12], char *word)
+{
+    i64 more = 0;
+
+    for (char *s = word; *s; s++) {
+        int dir = -1;
+        int pos = -1;
+
+        get_grid_letter_pos(state->grid, *s, &dir, &pos);
+        if (slots[dir * 3 + pos] == 0)
+            more++;
+        slots[dir * 3 + pos]++;
+    }
+
+    return more;
+}
+
+i64 pick_next_best_word(PuzzleState *state)
+{
+    // TODO For this part of the algorithm, we need to have some mechanisms to look at the current
+    // puzzle state and determine "how many more letters will be used by this word".
+
+    i32 slots[12] = {0};
+
+    for (i64 i = 0; state->words[i] != -1; i++) {
+        int dir = -1;
+        int pos = -1;
+
+        char *word = DICTIONARY[state->words[i]];
+
+        for (char *s = word; *s; s++) {
+            get_grid_letter_pos(state->grid, *s, &dir, &pos);
+            slots[dir * 3 + pos]++;
+        }
+    }
+
+    i64 max = -1;
+    i64 max_i = -1;
+
+    for (i64 i = 0; i < arrlen(LINKS[state->curr]); i++) {
+        char *word = DICTIONARY[LINKS[state->curr][i]];
+        i64 v = how_many_more_letters(state, slots, word);
+        if (v > max) {
+            max = v;
+            max_i = i;
+        }
+    }
+
+    return max_i;
 }
 
 int main(int argc, char **argv)
@@ -249,9 +301,24 @@ int main(int argc, char **argv)
         state->words[0] = i;
 
         // While we haven't exhausted the possible slots for this puzzle state, and the puzzle isn't
-        // solved, 
+        // solved, pick the link that uses the most unused letters, and continue until the puzzle
+        // is solved for this starting word.
 
         for (i32 j = 1; can_solving_continue(state) && !is_puzzle_solved(state); j++) {
+            state->curr = j;
+            i64 next_word = pick_next_best_word(state);
+            state->words[j] = next_word;
+        }
+    }
+
+    // PRINT OUT THE FIRST SET
+    {
+        PuzzleState *state = &puzzle_states[0];
+
+        puts("A SOLUTION");
+
+        for (i32 i = 0; state->words[i] != -1; i++) {
+            printf("  %d - %s\n", i, DICTIONARY[state->words[i]]);
         }
     }
 
@@ -264,10 +331,10 @@ int main(int argc, char **argv)
             LOG("  -> %s", DICTIONARY[LINKS[i][j]]);
         }
     }
-#endif
 
     for (i64 i = 0; i < arrlen(DICTIONARY); i++)
         LOG("%ld - %s", i, DICTIONARY[i]);
+#endif
 
     free(puzzle_states);
     for (i64 i = 0; i < arrlen(DICTIONARY); i++) {
