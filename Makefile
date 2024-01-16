@@ -1,6 +1,6 @@
 CFLAGS += -Wall -g3
 
-all: rcubestool wordle
+all: wordle
 
 wordle: wordle.c
 

@@ -14,6 +14,9 @@
 #include <ctype.h>
 #include <limits.h>
 
+#include "stb_ds.h"
+
+// #define DICTFILE "/usr/share/dict/american-english"
 #define DICTFILE "/usr/share/dict/american-english"
 #define LISTLIM  (1 << 20) // seems big enough :p
 #define WORDLELEN (5)
@@ -31,7 +34,7 @@
 #define DBG(FMT,...)
 #endif
 
-char *WORDLIST[LISTLIM];
+char *WORDLIST = NULL;
 int TOTALWORDS = 0;
 
 void strtolower(char *s)
@@ -220,6 +223,10 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+    while (buf == fgets(buf, sizeof buf, fp)) {
+        arrput(WORDLIST, strdup(buf));
+    }
+
 	for (i = 0; i < LISTLIM && buf == fgets(buf, sizeof buf, fp); i++) {
 		buf[strlen(buf) - 1] = 0;
 
@@ -297,6 +304,12 @@ int main(int argc, char **argv)
 		printentries(&printidx, printamt); // we literally don't do anything special to print a diverse set of guesses
 
 		guess++;
+	}
+
+	if (guess < 6) {
+		printf("You win! Congrats!\n");
+	} else {
+		printf("You lost even with cheats? Kinda cringe.");
 	}
 
 	return 0;
